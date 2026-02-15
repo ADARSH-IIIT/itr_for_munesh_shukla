@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP Govt Salary Slip (Smart Edit)</title>
+    <style>
+        /* --- GLOBAL & PRINT SETTINGS --- */
+        body { font-family: 'Times New Roman', serif; background: #eef2f5; padding: 10px; text-align: center; margin: 0; }
+        
+        /* THE A4 LANDSCAPE SHEET */
+        .sheet {
+            background: white;
+            width: 297mm; /* A4 Landscape */
+            min-height: 210mm;
+            margin: 0 auto;
+            padding: 5mm;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            text-align: left;
+        }
+
+        /* --- MOBILE RESPONSIVE WRAPPER --- */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+        }
+
+        /* --- CONTROLS (Hidden in Print) --- */
+        .controls-bar {
+            background: #333; color: white; padding: 10px; margin-bottom: 20px;
+            position: sticky; top: 0; z-index: 100; border-radius: 5px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .btn { padding: 8px 15px; cursor: pointer; border: none; font-weight: bold; border-radius: 3px; margin: 2px; }
+        .btn-add { background: #28a745; color: white; }
+        .btn-arr { background: #17a2b8; color: white; }
+        .btn-reset { background: #dc3545; color: white; }
+        .btn-print { background: #ffc107; color: black; }
+        
+        .btn-row-del {
+            background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;
+            cursor: pointer; border-radius: 3px; font-size: 10px; padding: 2px 5px;
+        }
+
+        .settings-area { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .settings-area label { font-size: 12px; color: #ccc; margin-right: 5px; }
+        .settings-area input { width: 40px; text-align: center; padding: 2px; }
+
+        /* --- EDITABLE HEADER INPUTS --- */
+        .header-input {
+            width: 100%; border: none; border-bottom: 1px dashed #ccc; 
+            font-family: 'Times New Roman'; font-weight: bold; font-size: 11px;
+            background: transparent; padding: 2px 0;
+        }
+        .header-input:focus { border-bottom: 1px solid blue; outline: none; background: #f0f8ff; }
+
+        /* SPECIAL TOP EDITORS */
+        .top-editor {
+            width: 80%; border: none; border-bottom: 1px dashed transparent;
+            text-align: center; font-family: inherit; font-weight: bold;
+            display: block; margin: 0 auto;
+        }
+        .top-editor:hover { border-bottom: 1px dashed #ccc; }
+        .top-editor:focus { outline: none; border-bottom: 1px solid blue; background: #f9f9f9; }
+
+        /* --- TABLE STYLES --- */
+        table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 5px; min-width: 1000px; }
+        th, td { border: 1px solid black; padding: 1px; text-align: center; vertical-align: middle; height: 20px; }
+        
+        .bg-head { background: #f2f2f2; font-weight: bold; }
+        .bg-group { background: #e0e0e0; font-weight: bold; font-size: 10px; }
+        
+        .vertical-head {
+            writing-mode: vertical-rl; transform: rotate(180deg); 
+            white-space: nowrap; height: 80px; padding: 5px 0;
+        }
+
+        input.cell {
+            width: 100%; height: 100%; border: none; text-align: center; 
+            font-family: inherit; font-size: 10px; background: transparent; outline: none; margin: 0;
+        }
+
+        .auto { background: #f9f9f9; color: #333; font-weight: bold; }
+        .grand-total { background: #333; color: white; font-weight: bold; }
+
+        @media (max-width: 768px) {
+            .sheet { width: 100%; padding: 10px; min-height: auto; }
+            .controls-bar { justify-content: center; }
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .controls-bar { display: none; }
+            .sheet { box-shadow: none; margin: 0; width: 100%; padding: 5mm; }
+            .table-responsive { overflow: visible; }
+            .top-editor { border: none !important; }
+            @page { size: A4 landscape; margin: 5mm; }
+            .no-print-col { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls-bar">
+    <div class="settings-area">
+        <span style="font-weight:bold; margin-right:10px;">⚙️ Settings:</span>
+        <div><label>NPS%:</label><input type="number" id="cfg_nps" value="0"></div>
+        <div><label>Emp%:</label><input type="number" id="cfg_emp" value="14"></div>
+    </div>
+    <div>
+        <button class="btn btn-add" onclick="addRow('month')">➕ Month</button>
+        <button class="btn btn-arr" onclick="addRow('arrear')">➕ Arrear</button>
+        <button class="btn btn-reset" onclick="resetData()">🗑️ Reset</button>
+        <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
+    </div>
+</div>
+
+<div class="sheet">
+    <div style="text-align: center; margin-bottom: 5px;">
+        <input class="top-editor save-target" id="h_state_name" value="M.P." style="font-size: 18px;">
+        <input class="top-editor save-target" id="h_main_title" value="Annual Pay Details For Financial Year 2025-26" style="font-size: 20px; text-decoration: underline;">
+    </div>
+    
+    <div class="table-responsive">
+        <table style="border: none; margin-bottom: 5px; min-width: 100%;">
+            <tr style="border:none;">
+                <td style="border:none; width:15%; font-weight:bold; text-align:left;">Financial Year :</td>
+                <td style="border:none; width:35%; text-align:left;"><input class="header-input save-target" id="h_fin_year" placeholder="2025-26"></td>
+                <td style="border:none; width:15%; font-weight:bold; text-align:right;">Assessment Year :</td>
+                <td style="border:none; width:35%; text-align:left;"><input class="header-input save-target" id="h_ass_year" placeholder="2026-27" style="text-align:center;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="table-responsive">
+        <table style="margin-bottom: 10px; min-width: 100%;">
+            <tr>
+                <td class="bg-head" style="width:12%">Employee Name</td>
+                <td style="width:38%"><input class="header-input save-target" id="h_emp_name" placeholder="Enter Name"></td>
+                <td class="bg-head" style="width:12%">Office Name</td>
+                <td style="width:38%"><input class="header-input save-target" id="h_office" placeholder="Enter Office"></td>
+            </tr>
+            <tr>
+                <td class="bg-head">Designation</td>
+                <td><input class="header-input save-target" id="h_desig" placeholder="Designation"></td>
+                <td class="bg-head">DDO Name</td>
+                <td><input class="header-input save-target" id="h_ddo" placeholder="DDO Name"></td>
+            </tr>
+            <tr>
+                <td class="bg-head">Unique ID</td>
+                <td><input class="header-input save-target" id="h_uid" placeholder="ID"></td>
+                <td class="bg-head">DDO TAN</td>
+                <td><input class="header-input save-target" id="h_tan"></td>
+            </tr>
+            <tr>
+                <td class="bg-head">Treasury Code</td>
+                <td><input class="header-input save-target" id="h_treasury"></td>
+                <td class="bg-head">PAN No.</td>
+                <td><input class="header-input save-target" id="h_pan"></td>
+            </tr>
+            <tr>
+                <td class="bg-head">Contrib Type</td>
+                <td><input class="header-input save-target" id="h_ctype" placeholder="NPS"></td>
+                <td class="bg-head">Status</td>
+                <td><input class="header-input save-target" id="h_status" value="Normal Individual" style="color:purple;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <td rowspan="2" class="bg-head" style="width:25px;">S.No</td>
+                    <td rowspan="2" class="bg-head" style="width:90px;">Month</td>
+                    <td colspan="9" class="bg-group">Details of Payment</td>
+                    <td rowspan="2" class="bg-group vertical-head">Gross Salary</td>
+                    <td colspan="9" class="bg-group">Details of Deduction</td>
+                    <td rowspan="2" class="bg-group vertical-head">Total<br>Deduction</td>
+                    <td rowspan="2" class="bg-group vertical-head">Net Salary</td>
+                    <td rowspan="2" class="bg-group vertical-head">Employer's<br>Contrib</td>
+                    <td rowspan="2" class="bg-head no-print-col" style="width:20px; color:red;">✖</td>
+                </tr>
+                <tr class="bg-head">
+                    <td style="width:30px;">% DA</td>
+                    <td style="width:45px;">Basic<br>Pay</td>
+                    <td style="width:35px;">Grade<br>Pay</td>
+                    <td style="width:45px;">Dearness<br>Allowance</td>
+                    <td style="width:30px;">CA</td>
+                    <td style="width:30px;">CCA</td>
+                    <td style="width:35px;">HRA</td>
+                    <td style="width:35px;">Interim<br>Relief</td>
+                    <td style="width:35px;">Other</td>
+                    <td style="width:35px;">GPF</td>
+                    <td style="width:35px;">NPS<br>Deduction</td>
+                    <td style="width:35px;">GIS</td>
+                    <td style="width:30px;">Recovery</td>
+                    <td style="width:30px;">Recoveries</td>
+                    <td style="width:30px;">Advance</td>
+                    <td style="width:35px;">Professional<br>Tax</td>
+                    <td style="width:35px;">Income<br>Tax</td>
+                    <td style="width:35px;">Other<br>Deduction</td>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+            <tfoot>
+                <tr class="grand-total">
+                    <td colspan="2">TOTAL</td>
+                    <td></td>
+                    <td id="t_basic">0</td>
+                    <td id="t_grade">0</td>
+                    <td id="t_daAmt">0</td>
+                    <td id="t_ca">0</td>
+                    <td id="t_cca">0</td>
+                    <td id="t_hra">0</td>
+                    <td id="t_interim">0</td>
+                    <td id="t_other">0</td>
+                    <td id="t_gross" style="background:#222;">0</td>
+                    <td id="t_gpf">0</td>
+                    <td id="t_nps">0</td>
+                    <td id="t_gis">0</td>
+                    <td id="t_rec">0</td>
+                    <td id="t_recs">0</td>
+                    <td id="t_adv">0</td>
+                    <td id="t_pt">0</td>
+                    <td id="t_it">0</td>
+                    <td id="t_oded">0</td>
+                    <td id="t_tded" style="background:#222;">0</td>
+                    <td id="t_net" style="background:#222; font-size:11px;">0</td>
+                    <td id="t_emp">0</td>
+                    <td class="no-print-col"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div style="margin-top: 40px; display: flex; justify-content: space-between; padding: 0 40px; flex-wrap: wrap; gap: 20px;">
+        <div style="text-align: center;">
+            <div style="font-weight: bold;"><input class="header-input save-target" id="f_sig1_title" value="Principal" style="text-align:center;"></div>
+            <div style="font-size: 10px;"><input class="header-input save-target" id="f_sig1_sub" placeholder="School Name" style="text-align:center;"></div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-weight: bold;"><input class="header-input save-target" id="f_sig2_name" placeholder="Name" style="text-align:center;"></div>
+            <div style="font-size: 10px;"><input class="header-input save-target" id="f_sig2_desig" placeholder="Designation" style="text-align:center;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Original script remains unchanged to preserve your logic
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        document.body.addEventListener('input', () => saveData());
+    });
+
+    function saveData() {
+        const data = { headers: {}, rows: [], config: { nps: document.getElementById('cfg_nps').value, emp: document.getElementById('cfg_emp').value } };
+        document.querySelectorAll('.save-target').forEach(input => data.headers[input.id] = input.value);
+        const tbody = document.getElementById('tbody');
+        tbody.querySelectorAll('tr').forEach(tr => {
+            const inputs = tr.querySelectorAll('input.cell');
+            data.rows.push({
+                month: inputs[0].value, daPct: inputs[1].value, basic: inputs[2].value, grade: inputs[3].value,
+                ca: inputs[4].value, cca: inputs[5].value, hra: inputs[6].value, interim: inputs[7].value, other: inputs[8].value,
+                gpf: inputs[9].value, gis: inputs[10].value, rec: inputs[11].value, recs: inputs[12].value, adv: inputs[13].value,
+                pt: inputs[14].value, it: inputs[15].value, oded: inputs[16].value,
+                npsRate: tr.querySelector('.row-nps-rate').value, empRate: tr.querySelector('.row-emp-rate').value
+            });
+        });
+        localStorage.setItem('salarySheetSmart_v2', JSON.stringify(data));
+    }
+
+    function loadData() {
+        const saved = localStorage.getItem('salarySheetSmart_v2');
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        if (data.headers) Object.keys(data.headers).forEach(id => { const el = document.getElementById(id); if(el) el.value = data.headers[id]; });
+        if (data.config) { document.getElementById('cfg_nps').value = data.config.nps; document.getElementById('cfg_emp').value = data.config.emp; }
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+        if (data.rows) data.rows.forEach(rowData => renderRow(rowData));
+        sumAll();
+    }
+
+    function resetData() { if(confirm("Delete all data?")) { localStorage.removeItem('salarySheetSmart_v2'); location.reload(); } }
+
+    function addRow(type) {
+        const tbody = document.getElementById('tbody');
+        const count = tbody.rows.length + 1;
+        let mName = "";
+        if(type === 'month') {
+            const ms = ["Mar-2025", "Apr-2025", "May-2025", "Jun-2025", "Jul-2025", "Aug-2025", "Sep-2025", "Oct-2025", "Nov-2025", "Dec-2025", "Jan-2026", "Feb-2026"];
+            mName = ms[count-1] || `Month-${count}`;
+        } else { mName = "Arrears"; }
+        renderRow({ month: mName, daPct: 0, basic: 0, grade: 0, ca: 0, cca: 0, hra: 0, interim: 0, other: 0, gpf: 0, gis: 0, rec: 0, recs: 0, adv: 0, pt: 0, it: 0, oded: 0, npsRate: document.getElementById('cfg_nps').value, empRate: document.getElementById('cfg_emp').value });
+        saveData();
+    }
+
+    function renderRow(d) {
+        const tbody = document.getElementById('tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="bg-head sno-cell"></td>
+            <td><input class="cell" value="${d.month}" style="text-align:left;"><input type="hidden" class="row-nps-rate" value="${d.npsRate}"><input type="hidden" class="row-emp-rate" value="${d.empRate}"></td>
+            <td><input type="number" class="cell" value="${d.daPct}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.basic}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.grade}" oninput="smartCalc(this)"></td> 
+            <td class="auto val-daAmt">0</td> 
+            <td><input type="number" class="cell" value="${d.ca}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.cca}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.hra}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.interim}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.other}" oninput="smartCalc(this)"></td> 
+            <td class="auto val-gross">0</td> 
+            <td><input type="number" class="cell" value="${d.gpf}" oninput="smartCalc(this)"></td> 
+            <td class="auto val-nps">0</td> 
+            <td><input type="number" class="cell" value="${d.gis}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.rec}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.recs}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.adv}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.pt}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.it}" oninput="smartCalc(this)"></td> 
+            <td><input type="number" class="cell" value="${d.oded}" oninput="smartCalc(this)"></td> 
+            <td class="auto val-tded">0</td><td class="auto val-net">0</td><td class="auto val-emp">0</td>
+            <td class="no-print-col" style="text-align:center;"><button class="btn-row-del" onclick="deleteRow(this)">🗑️</button></td>
+        `;
+        tbody.appendChild(tr);
+        renumberRows();
+        calc(tr.querySelector('input')); 
+    }
+
+    function deleteRow(btn) { if(confirm("Delete row?")) { btn.closest('tr').remove(); renumberRows(); sumAll(); saveData(); } }
+    function renumberRows() { document.querySelectorAll('#tbody tr').forEach((row, index) => { row.querySelector('.sno-cell').innerText = index + 1; }); }
+    function smartCalc(el) { const tr = el.closest('tr'); tr.querySelector('.row-nps-rate').value = document.getElementById('cfg_nps').value; tr.querySelector('.row-emp-rate').value = document.getElementById('cfg_emp').value; calc(el); }
+
+    function calc(el) {
+        const tr = el.closest('tr');
+        const inps = tr.querySelectorAll('input.cell'); 
+        const npsR = parseFloat(tr.querySelector('.row-nps-rate').value)/100, empR = parseFloat(tr.querySelector('.row-emp-rate').value)/100;
+        const daP = parseFloat(inps[1].value)||0, bas = parseFloat(inps[2].value)||0, grd = parseFloat(inps[3].value)||0;
+        const daA = Math.round(bas * (daP/100)); tr.querySelector('.val-daAmt').innerText = daA;
+        const gross = bas + grd + daA + (parseFloat(inps[4].value)||0) + (parseFloat(inps[5].value)||0) + (parseFloat(inps[6].value)||0) + (parseFloat(inps[7].value)||0) + (parseFloat(inps[8].value)||0);
+        tr.querySelector('.val-gross').innerText = gross;
+        const nps = Math.round((bas + daA) * npsR); tr.querySelector('.val-nps').innerText = nps;
+        const tded = (parseFloat(inps[9].value)||0) + nps + (parseFloat(inps[10].value)||0) + (parseFloat(inps[11].value)||0) + (parseFloat(inps[12].value)||0) + (parseFloat(inps[13].value)||0) + (parseFloat(inps[14].value)||0) + (parseFloat(inps[15].value)||0) + (parseFloat(inps[16].value)||0);
+        tr.querySelector('.val-tded').innerText = tded;
+        tr.querySelector('.val-net').innerText = gross - tded;
+        tr.querySelector('.val-emp').innerText = Math.round((bas + daA) * empR);
+        sumAll();
+    }
+
+    function sumAll() {
+        let t = { bas:0, grd:0, da:0, ca:0, cca:0, hra:0, int:0, oth:0, gr:0, gpf:0, nps:0, gis:0, rec:0, recs:0, adv:0, pt:0, it:0, od:0, td:0, net:0, emp:0 };
+        document.querySelectorAll('#tbody tr').forEach(r => {
+            const i = r.querySelectorAll('input.cell');
+            t.bas += parseFloat(i[2].value)||0; t.grd += parseFloat(i[3].value)||0; t.da += parseFloat(r.querySelector('.val-daAmt').innerText)||0;
+            t.ca += parseFloat(i[4].value)||0; t.cca += parseFloat(i[5].value)||0; t.hra += parseFloat(i[6].value)||0; t.int += parseFloat(i[7].value)||0; t.oth += parseFloat(i[8].value)||0;
+            t.gr += parseFloat(r.querySelector('.val-gross').innerText)||0; t.gpf += parseFloat(i[9].value)||0; t.nps += parseFloat(r.querySelector('.val-nps').innerText)||0; t.gis += parseFloat(i[10].value)||0;
+            t.rec += parseFloat(i[11].value)||0; t.recs += parseFloat(i[12].value)||0; t.adv += parseFloat(i[13].value)||0; t.pt += parseFloat(i[14].value)||0; t.it += parseFloat(i[15].value)||0; t.od += parseFloat(i[16].value)||0;
+            t.td += parseFloat(r.querySelector('.val-tded').innerText)||0; t.net += parseFloat(r.querySelector('.val-net').innerText)||0; t.emp += parseFloat(r.querySelector('.val-emp').innerText)||0;
+        });
+        const ids = ['t_basic','t_grade','t_daAmt','t_ca','t_cca','t_hra','t_interim','t_other','t_gross','t_gpf','t_nps','t_gis','t_rec','t_recs','t_adv','t_pt','t_it','t_oded','t_tded','t_net','t_emp'];
+        const vals = [t.bas, t.grd, t.da, t.ca, t.cca, t.hra, t.int, t.oth, t.gr, t.gpf, t.nps, t.gis, t.rec, t.recs, t.adv, t.pt, t.it, t.od, t.td, t.net, t.emp];
+        ids.forEach((id, i) => document.getElementById(id).innerText = vals[i]);
+    }
+</script>
+
+</body>
+</html>
